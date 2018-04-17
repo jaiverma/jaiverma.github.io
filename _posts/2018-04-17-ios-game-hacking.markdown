@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Winning Minesweeper"
+title: "iOS Game Hacking: Minesweeper"
 date: 2018-04-16 14:16:00 +0530
 categories: blog
 ---
@@ -52,7 +52,7 @@ DONE: /private/var/mobile/Documents/Dumped/com.libertyforone.minesweeperclassic2
 Finished dumping com.libertyforone.minesweeperclassic2 in 10.8 seconds
 {% endhighlight %}
 
-`-[MinesweeperViewController startNewGame]` is the function responsible for initialising the game. The `MinesweeperViewController` has a member named `board` which is a `BoardView` which stores the game grid as a 2D integer array. `startNewGame` initialises this grid using `-[BoardView setGrid: x: y: ]`. All cells of the 2D array which hold bombs are initialised with the number `17` and the rest are set to `16`.
+`-[MinesweeperViewController startNewGame]` is the function responsible for initialising the game. The `MinesweeperViewController` has a member named `board` which returns a `BoardView` which stores the game grid as a 2D integer array. `startNewGame` initialises this grid using `-[BoardView setGrid: x: y: ]`. All cells of the 2D array which hold bombs are initialised with the number `17` and the rest are set to `16`.
 
 {% highlight c %}
 void __cdecl -[MinesweeperViewController startNewGame](MinesweeperViewController *self, SEL a2)
@@ -357,7 +357,7 @@ Since we are hooking a custom ViewController which is not available by default, 
 @end
 {% endhighlight %}
 
-The tweak code is fairly simple and achieves the same purpose as the previous method.
+The tweak code is fairly straightforward and achieves the same purpose as the previous method.
 
 {% highlight objective_c %}
 #include "Mine.h"
@@ -507,7 +507,7 @@ Archive:  com.libertyforone.minesweeperclassic2-iOS9.0-(Clutch-2.0.4 DEBUG).ipa
   ...
 {% endhighlight %}
 
-We'll unzip the decrypted ipa which be obtained via Clutch detailed in the first method, and copy over our dylib into a new folder inside the Payload folder of the app. Now for instructing the application to load our dylib, we have to modify the app binary. iOS binaries are of the Mach-O file format and we'll be modifying the load commands section using a tool called [optool](https://github.com/alexzielenski/optool).
+We'll unzip the decrypted ipa which we obtained via Clutch detailed in the first method, and copy over our dylib into a new folder inside the Payload folder of the app. Now for instructing the application to load our dylib, we have to modify the app binary. iOS binaries are of the Mach-O file format and we'll be modifying the load commands section using a tool called [optool](https://github.com/alexzielenski/optool).
 
 {% highlight shell_session %}
 jai@Acheron ~/Documents/tmp/optool/bin (master*) $ ./optool install -c load -p "@executable_path/dylib/Swizzle" -t "/Users/jai/Documents/tmp/minesweeper/ipa/Payload/MinesweeperClassic2.app/MinesweeperClassic2"
