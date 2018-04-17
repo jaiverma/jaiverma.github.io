@@ -45,3 +45,6 @@ plugins:
 collections:
   posts:
     permalink: /blog/:title
+
+disqus:
+  shortname: jaiverma-github-io

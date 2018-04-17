@@ -527,4 +527,4 @@ Note that these techniques work for all difficulty levels in the game and for an
 ![Win Easy]({{"/assets/2018-04-16-winning-minesweeper/win_4.png"}}) ![Win Medium]({{"/assets/2018-04-16-winning-minesweeper/win_3.png"}})
 {: refdef}
 
-Well this finally concludes this post. I hope you enjoyed reading it and learned something new. Feel free to leave comments for questions or any corrections!
+Well this finally concludes this post. The techniques mentioned in this post can be applied to various different scenarios leading to some interesting and fun results. Therefore, I encourage you to dwell deeper and hack some games of your own! I hope you enjoyed reading this post and learnt something new. Feel free to leave comments for questions or any corrections!
