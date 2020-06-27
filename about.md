@@ -1,11 +1,11 @@
 ---
-layout: page
-title: About
+layout: default
+title: /about
 permalink: /about/
 ---
 
-Just another security blog.
+# /about
 
-Contact Me:
+This website just contains my notes about random security stuff.
 
-[LinkedIn](https://www.linkedin.com/in/jai-verma-810bb9134)
+Nothing to see here...
