@@ -14,7 +14,7 @@ footer: 'contact me: <a href="https://twitter.com/_jaiverma">twitter</a>, <a hre
 
 # Build settings
 markdown: kramdown
-theme: blackandpink
+remote_theme: jaiverma/blackandpink
 highlighter: rouge
 
 plugins:
