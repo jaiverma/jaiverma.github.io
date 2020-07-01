@@ -454,3 +454,8 @@ Okay I am going to end with that example. In this write-up I went through a coup
 I find Joern to be a fascinating tool, and I plan to keep exploring it and do a couple more write-ups about it.
 
 If you would like to try out Joern, you can download it from the [GitHub repo](https://github.com/ShiftLeftSecurity/joern). The queries used here and the companion code snippets are also on my GitHub [here](https://github.com/jaiverma/joern-queries).
+
+# References
+
+- [https://gitter.im/joern-code-analyzer/community](https://gitter.im/joern-code-analyzer/community)
+- [https://blog.shiftleft.io/zero-day-snafus-hunting-memory-allocation-bugs-797e214fab6c](https://blog.shiftleft.io/zero-day-snafus-hunting-memory-allocation-bugs-797e214fab6c)
