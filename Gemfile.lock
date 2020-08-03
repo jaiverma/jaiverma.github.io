@@ -3,7 +3,7 @@ GEM
   specs:
     addressable (2.7.0)
       public_suffix (>= 2.0.2, < 5.0)
-    blackandpink (0.1.0)
+    blackandpink (0.1.2)
       jekyll (~> 4.1)
     colorator (1.1.0)
     concurrent-ruby (1.1.6)
@@ -65,7 +65,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  blackandpink (~> 0.1.0)
+  blackandpink (~> 0.1.2)
   jekyll (~> 4.1)
   jekyll-feed (~> 0.6)
   tzinfo-data

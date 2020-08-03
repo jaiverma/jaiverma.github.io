@@ -14,7 +14,12 @@ footer: 'contact me: <a href="https://twitter.com/_jaiverma">twitter</a>, <a hre
 
 # Build settings
 markdown: kramdown
-remote_theme: jaiverma/blackandpink
+
+# 'theme' is just used for local testing, use 'remote_theme' when pushing to
+# GH pages
+theme: blackandpink
+# remote_theme: jaiverma/blackandpink
+
 highlighter: rouge
 
 plugins:
