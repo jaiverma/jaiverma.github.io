@@ -44,7 +44,7 @@ Our goal is to look for calls to `memcpy` where the size argument may be control
 
 `ntoh` is used for converting data from network byte order to host byte order.
 
-In the example above, we're interested in the flow in function `g` where the size parameter of `memcpy` is directly influenced by the data returned from the call to `ntohl`.
+In the example above, we're interested in the flow in function `f` where the size parameter of `memcpy` is directly influenced by the data returned from the call to `ntohl`.
 
 To do this, we can write the following query.
 
