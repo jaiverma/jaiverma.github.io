@@ -14,7 +14,7 @@ I feel that this tool is similar to [CodeQL](https://securitylab.github.com/tool
 
 - The query language for Joern is very easy to use and learn, whereas I found CodeQL to be much more difficult. I found Joern's query language to be much simpler that CodeQL.<br /><br />
 - You don't have to build a project for use with Joern. Joern is bundled with a fuzzy source code parser which is able to generate a code property graph without actually building the code. This is both good and bad. The good part is that you can use Joern even when you don't have the full source code so you don't have to spend time in getting a working build (this is especially beneficial for embedded code bases). The bad part is that the accuracy of the queries decreases as compared to CodeQL.<br /><br />
-- One major disadvantage of Joern is, that it currently does not support inter-procedural taint-analysis (which is possible with CodeQL).
+- ~~One major disadvantage of Joern is, that it currently does not support inter-procedural taint-analysis (which is possible with CodeQL).~~ Joern now supports inter-procedural data-flow analysis!
 
 I will go over some example use-cases of Joern using some test programs.
 
@@ -131,21 +131,19 @@ res6: List[(String, String, String, String)] = List(
 We can also get flow from one operation to another. For example, if we want to see the trasformations on variable `x` from it's definition to the call to `printf`, we can do the following:
 
 {% highlight scala %}
-joern> val src = cpg.identifier.name("x")
-src: NodeSteps[Identifier] = io.shiftleft.semanticcpg.language.NodeSteps@54d30bfd
+joern> val src = cpg.identifier.name("x") 
+src: Traversal[Identifier] = Traversal
 
 joern> val sink = cpg.call.name("printf").argument 
-sink: NodeSteps[Expression] = io.shiftleft.semanticcpg.language.NodeSteps@1eee1b2b
+sink: Traversal[Expression] = Traversal
 
-joern> sink.reachableByFlows(src).p
-res10: List[String] = List(
-  """___________________________________________________________________________________
-| tracked               | lineNumber| method| file                                 |
-|==================================================================================|
-| x = 2                 | 10        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| add_one(x)            | 13        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| x = add_one(x)        | 13        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| printf("x is %d\n", x)| 14        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
+joern> sink.reachableByFlows(src).p 
+res7: List[String] = List(
+  """________________________________________________________________________________________
+| tracked                | lineNumber| method| file                                     |
+|=======================================================================================|
+| x = add_one(x)         | 10        | main  | /home/jai/Documents/projects/vuln/main.c |
+| printf("x is %d\n", x) | 11        | main  | /home/jai/Documents/projects/vuln/main.c |
 """,
 ...
 {% endhighlight %}
@@ -169,14 +167,12 @@ Running this for `main` gives us the same output:
 
 {% highlight scala %}
 joern> getFlow("main") 
-res20: List[String] = List(
-  """___________________________________________________________________________________
-| tracked               | lineNumber| method| file                                 |
-|==================================================================================|
-| x = 2                 | 10        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| add_one(x)            | 13        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| x = add_one(x)        | 13        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
-| printf("x is %d\n", x)| 14        | main  | /Users/jai/wd/tmp/vuln/example/main.c|
+res9: List[String] = List(
+  """________________________________________________________________________________________
+| tracked                | lineNumber| method| file                                     |
+|=======================================================================================|
+| x = add_one(x)         | 10        | main  | /home/jai/Documents/projects/vuln/main.c |
+| printf("x is %d\n", x) | 11        | main  | /home/jai/Documents/projects/vuln/main.c |
 """,
 ...
 {% endhighlight %}
@@ -262,32 +258,33 @@ res7: List[Expression] = List(
 The problem I faced was that joern was not able to discover a path between the identifier `x`, and the call to `read`.
 
 {% highlight scala %}
-joern> val src = cpg.identifier.name("x")
-src: NodeSteps[Identifier] = io.shiftleft.semanticcpg.language.NodeSteps@7da1010a
+joern> val src = cpg.identifier.name("x") 
+src: Traversal[Identifier] = Traversal
 
-joern> val sink = cpg.call.name("read").argument.order(2)
-sink2: NodeSteps[Expression] = io.shiftleft.semanticcpg.language.NodeSteps@75a000d8
+joern> val sink = cpg.call.name("read").argument(2) 
+sink: Traversal[Expression] = Traversal
 
-joern> sink2.reachableByFlows(src).p
-res10: List[String] = List()
+joern> sink.reachableByFlows(src).p 
+res5: List[String] = List()
 {% endhighlight %}
 
 Anyway, we are still able to find a path from the local variables of the function to the return value.
 
 {% highlight scala %}
-joern> val src = cpg.method.name("get_tainted_int").local.referencingIdentifiers
-src: NodeSteps[Identifier] = io.shiftleft.semanticcpg.language.NodeSteps@46b38c69
+joern> val src = cpg.method.name("get_tainted_int").local.referencingIdentifiers 
+src: Traversal[Identifier] = Traversal
 
-joern> val sink = cpg.method.name("get_tainted_int").methodReturn
-sink: NodeSteps[MethodReturn] = io.shiftleft.semanticcpg.language.NodeSteps@10c405d
+joern> val sink = cpg.method.name("get_tainted_int").methodReturn 
+sink: Traversal[MethodReturn] = Traversal
 
-joern> sink.reachableByFlows(src).p
-res13: List[String] = List(
-  """________________________________________________________________________________
-| tracked  | lineNumber| method         | file                                  |
-|===============================================================================|
-| return x;| 11        | get_tainted_int| /Users/jai/wd/tmp/vuln/overflow/main.c|
-| RET      | 8         | get_tainted_int| /Users/jai/wd/tmp/vuln/overflow/main.c|
+joern> sink.reachableByFlows(src).p 
+res8: List[String] = List(
+  """_____________________________________________________________________________________
+| tracked   | lineNumber| method          | file                                     |
+|====================================================================================|
+| return x; | 4         | get_tainted_int | /home/jai/Documents/projects/vuln/main.c |
+| return x; | 4         | get_tainted_int | /home/jai/Documents/projects/vuln/main.c |
+| int       | 1         | get_tainted_int | /home/jai/Documents/projects/vuln/main.c |
 """
 )
 {% endhighlight %}
@@ -299,21 +296,38 @@ Okay, so now we've figured out some functions which return tainted data (in our 
 We can do this with:
 
 {% highlight scala %}
-joern> val src = cpg.call.name("get_tainted_int")
-val src: NodeSteps[Call] = io.shiftleft.semanticcpg.language.NodeSteps@719363e7
+joern> val src = cpg.call.name("get_tainted_int") 
+src: Traversal[Call] = Traversal
 
-joern> val sink = cpg.call.name("memcpy").argument
-sink: NodeSteps[Expression] = io.shiftleft.semanticcpg.language.NodeSteps@33fb7e39
+joern> val sink = cpg.call.name("memcpy").argument(3) 
+sink: Traversal[Expression] = Traversal
 
-joern> sink.reachableByFlows(src).p
-res16: List[String] = List()
+joern> sink.reachableByFlows(src).p 
+res14: List[String] = List(
+  """__________________________________________________________________________________________
+| tracked                  | lineNumber| method| file                                     |
+|=========================================================================================|
+| get_tainted_int(fd)      | 14        | main  | /home/jai/Documents/projects/vuln/main.c |
+| sz = get_tainted_int(fd) | 14        | main  | /home/jai/Documents/projects/vuln/main.c |
+| malloc(sz)               | 15        | main  | /home/jai/Documents/projects/vuln/main.c |
+| malloc(sz)               | 15        | main  | /home/jai/Documents/projects/vuln/main.c |
+| * str = malloc(sz)       | 15        | main  | /home/jai/Documents/projects/vuln/main.c |
+| copy(str, sz)            | 17        | main  | /home/jai/Documents/projects/vuln/main.c |
+| copy(char *s, int n)     | 7         | copy  | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(buf, s, n)        | 9         | copy  | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(buf, s, n)        | 9         | copy  | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(buf, s, n)        | 9         | copy  | /home/jai/Documents/projects/vuln/main.c |
+"""
+)
 {% endhighlight %}
 
-Hmm, so that didn't work...
+~~Hmm, so that didn't work...~~ This works perfectly thanks to Joern's inter-procedural data-flow analysis.
 
-This is because inter-procedural taint-analysis is not yet supported in the open-source version. So we can do some more filtering.
+~~This is because inter-procedural taint-analysis is not yet supported in the open-source version. So we can do some more filtering.~~
 
-We will look for functions where data from `get_tainted_int` reaches a call to a function which then calls `memcpy` on it.
+**The remaining part of this section is only applicable to versions of Joern prior to `v1.0.0`. We continue in the U-Boot section.**
+
+As an exercise, we'll still try to do some manual data-flow analysis using intra-procedural building blocks. We will look for functions where data from `get_tainted_int` reaches a call to a function which then calls `memcpy` on it.
 
 {% highlight scala %}
 joern> val src = cpg.call.name("get_tainted_int") 
@@ -428,21 +442,24 @@ cpg.method.name("strlen").map(
 This gives us the following results:
 
 {% highlight scala %}
-res8: List[(String, String, Integer)] = List(
-  ("strlen", "/Users/jai/wd/tmp/u-boot/lib/string.c", 264),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/board/gdsys/common/osd.c", 288),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/board/Synology/ds414/cmd_syno.c", 101),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/board/Synology/ds414/cmd_syno.c", 89),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/cmd/elf.c", 491),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/cmd/elf.c", 448),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/drivers/video/videomodes.c", 153),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/command.c", 408),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/command.c", 368),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/command.c", 335),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/command.c", 226),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/cli_readline.c", 562),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/common/cli_readline.c", 468),
-  ("strlen", "/Users/jai/wd/tmp/u-boot/test/print_ut.c", 131)
+res1: List[(String, String, Integer)] = List(
+  ("strlen", "/home/jai/Documents/projects/u-boot/arch/m68k/include/asm/string.h", 22),
+  ("strlen", "/home/jai/Documents/projects/u-boot/arch/powerpc/include/asm/string.h", 20),
+  ("strlen", "/home/jai/Documents/projects/u-boot/board/Synology/ds414/cmd_syno.c", 89),
+  ("strlen", "/home/jai/Documents/projects/u-boot/board/Synology/ds414/cmd_syno.c", 101),
+  ("strlen", "/home/jai/Documents/projects/u-boot/board/gdsys/common/osd.c", 288),
+  ("strlen", "/home/jai/Documents/projects/u-boot/cmd/elf.c", 448),
+  ("strlen", "/home/jai/Documents/projects/u-boot/cmd/elf.c", 491),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/cli_readline.c", 468),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/cli_readline.c", 562),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/command.c", 226),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/command.c", 335),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/command.c", 368),
+  ("strlen", "/home/jai/Documents/projects/u-boot/common/command.c", 408),
+  ("strlen", "/home/jai/Documents/projects/u-boot/drivers/video/videomodes.c", 153),
+  ("strlen", "/home/jai/Documents/projects/u-boot/include/linux/string.h", 74),
+  ("strlen", "/home/jai/Documents/projects/u-boot/lib/string.c", 264),
+  ("strlen", "/home/jai/Documents/projects/u-boot/test/print_ut.c", 131)
 )
 {% endhighlight %}
 
@@ -476,24 +493,18 @@ cpg.call.name("memcpy").map(
 This gives us the following results:
 
 {% highlight scala %}
-res20: List[(String, String, Integer)] = List(
-  (
-    "memcpy",
-    "/Users/jai/wd/tmp/u-boot/lib/efi_selftest/efi_selftest_set_virtual_address_map.c",
-    128
-  ),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/arch/x86/cpu/broadwell/sdram.c", 145),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/arch/x86/cpu/broadwell/sdram.c", 144),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/soc/ti/k3-navss-ringacc.c", 824),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/soc/ti/k3-navss-ringacc.c", 806),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/fs/ubifs/tnc.c", 1659),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/ddr/fsl/interactive.c", 2071),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/ddr/fsl/interactive.c", 2063),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/ddr/fsl/interactive.c", 2057),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/ddr/fsl/interactive.c", 2051),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/drivers/ddr/fsl/interactive.c", 2045),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/fs/ubifs/tnc.c", 396),
-  ("memcpy", "/Users/jai/wd/tmp/u-boot/fs/ubifs/tnc.c", 199),
+joern> cpg.call.name("memcpy").map(
+           m => (m.name, m.location.filename, m.location.lineNumber.get)
+       ).l 
+res2: List[(String, String, Integer)] = List(
+  ("memcpy", "/home/jai/Documents/projects/u-boot/api/api.c", 667),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/api/api_net.c", 65),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/arch/arc/lib/relocate.c", 24),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/arch/arc/lib/relocate.c", 91),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/arch/arc/lib/relocate.c", 130),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/arch/arm/cpu/arm926ejs/mxs/spl_boot.c", 105),
+  ("memcpy", "/home/jai/Documents/projects/u-boot/arch/arm/cpu/armv7/virt-v7.c", 58),
+...
 {% endhighlight %}
 
 For [step-7](https://github.com/jaiverma/codeql-uboot/issues/11), we want to find invocations of the `ntoh*` macros. Again, since joern doesn't have a separate class for macros, we can just filter for calls.
@@ -552,7 +563,106 @@ where cfg.hasFlowPath(source, sink)
 select sink, source, sink, "Network byte swap flows to memcpy"
 {% endhighlight %}
 
-This gives us 9 results which are all vulnerable. A major benefit of CodeQL is that, unlike Joern, CodeQL supports inter-procedural taint analysis.
+This gives us 9 results which are all vulnerable. ~~A major benefit of CodeQL is that, unlike Joern, CodeQL supports inter-procedural taint analysis.~~
+
+We can look for the same thing with Joern with the following query:
+
+{% highlight scala %}
+val src = cpg.call.name("ntoh.*")
+val sink = cpg.call.name("memcpy").argument(3)
+sink.reachableByFlows(src).p
+{% endhighlight %}
+
+This gives us 62 results! Some of them are:
+
+```
+res6: List[String] = List(
+  """______________________________________________________________________________________________________________________________________
+| tracked                                              | lineNumber| method           | file                                          |
+|=====================================================================================================================================|
+| ntohs(ip->ip_off)                                    | 906       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| ip_off = ntohs(ip->ip_off)                           | 906       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| ip_off & IP_OFFS                                     | 910       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| ip_off & IP_OFFS                                     | 910       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| offset8 =  (ip_off & IP_OFFS)                        | 910       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| payload + offset8                                    | 911       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| thisfrag = payload + offset8                         | 911       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| h >= thisfrag                                        | 963       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| h >= thisfrag                                        | 985       | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| (uchar *)thisfrag                                    | 1009      | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+| memcpy((uchar *)thisfrag, indata + IP_HDR_SIZE, len) | 1009      | __net_defragment | /home/jai/Documents/projects/u-boot/net/net.c |
+""",
+  """____________________________________________________________________________________________________________________________________________________
+| tracked                                                       | lineNumber| method           | file                                               |
+|===================================================================================================================================================|
+| ntohs(net_our_vlan)                                           | 1419      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| myvlanid = ntohs(net_our_vlan)                                | 1419      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| myvlanid == (ushort)-1                                        | 1420      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| myvlanid & VLAN_IDMASK                                        | 1423      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| myvlanid & VLAN_IDMASK                                        | 1423      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| myvlanid & VLAN_IDMASK                                        | 1423      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| (myvlanid & VLAN_IDMASK) == VLAN_NONE                         | 1423      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| int                                                           | 1414      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| net_eth_hdr_size(void)                                        | 1414      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| int                                                           | 1414      | net_eth_hdr_size | /home/jai/Documents/projects/u-boot/net/net.c      |
+| net_eth_hdr_size()                                            | 137       | fastboot_send    | /home/jai/Documents/projects/u-boot/net/fastboot.c |
+| net_tx_packet + net_eth_hdr_size() + IP_UDP_HDR_SIZE          | 137       | fastboot_send    | /home/jai/Documents/projects/u-boot/net/fastboot.c |
+| packet = net_tx_packet + net_eth_hdr_size() + IP_UDP_HDR_SIZE | 137       | fastboot_send    | /home/jai/Documents/projects/u-boot/net/fastboot.c |
+| memcpy(packet, &response_header, sizeof(response_header))     | 150       | fastboot_send    | /home/jai/Documents/projects/u-boot/net/fastboot.c |
+| sizeof(response_header)                                       | 196       | fastboot_send    | /home/jai/Documents/projects/u-boot/net/fastboot.c |
+""",
+  """___________________________________________________________________________________________________________________________________________
+| tracked                                                   | lineNumber| method           | file                                          |
+|==========================================================================================================================================|
+| ntohs(et->et_protlen)                                     | 1458      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| protlen = ntohs(et->et_protlen)                           | 1458      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| protlen == PROT_VLAN                                      | 1459      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| protlen > 1514                                            | 1464      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| protlen > 1514                                            | 1464      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| int                                                       | 1452      | net_update_ether | /home/jai/Documents/projects/u-boot/net/net.c |
+| net_update_ether(et, et->et_src, PROT_ARP)                | 165       | arp_receive      | /home/jai/Documents/projects/u-boot/net/arp.c |
+| eth_hdr_size = net_update_ether(et, et->et_src, PROT_ARP) | 165       | arp_receive      | /home/jai/Documents/projects/u-boot/net/arp.c |
+| eth_hdr_size + ARP_HDR_SIZE                               | 186       | arp_receive      | /home/jai/Documents/projects/u-boot/net/arp.c |
+""",
+  """__________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+| tracked                                                                                                                             | lineNumber| method                 | file                                                 |
+|=================================================================================================================================================================================================================================|
+| ntohs(arp->ar_pro)                                                                                                                  | 251       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| ntohs(arp->ar_op)                                                                                                                   | 252       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "%s recv arp type=%d, op=%d,\n",\n\t\t   eth_get_name(), ntohs(arp->ar_pro),\n\t\t   ntohs(arp->ar_op)) | 250       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "\tsource=%pM %pI4\n",\n\t\t   &arp->ar_sha,\n\t\t   &arp->ar_spa)                                      | 253       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "\tsource=%pM %pI4\n",\n\t\t   &arp->ar_sha,\n\t\t   &arp->ar_spa)                                      | 253       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| memcmp(&arp->ar_sha, net_ethaddr, ARP_HLEN)                                                                                         | 270       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| memcmp(&arp->ar_sha, net_ethaddr, ARP_HLEN)                                                                                         | 283       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| arp_raw_request(ip, net_ethaddr, ip)                                                                                                | 317       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| arp_raw_request(struct in_addr source_ip, const uchar *target_ethaddr, struct in_addr target_ip)                                    | 51        | arp_raw_request        | /home/jai/Documents/projects/u-boot/net/arp.c        |
+| memcpy(&arp->ar_tha, target_ethaddr, ARP_HLEN)                                                                                      | 75        | arp_raw_request        | /home/jai/Documents/projects/u-boot/net/arp.c        |
+""",
+  """__________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+| tracked                                                                                                                             | lineNumber| method                 | file                                                 |
+|=================================================================================================================================================================================================================================|
+| ntohs(arp->ar_op)                                                                                                                   | 252       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "%s recv arp type=%d, op=%d,\n",\n\t\t   eth_get_name(), ntohs(arp->ar_pro),\n\t\t   ntohs(arp->ar_op)) | 250       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "\tsource=%pM %pI4\n",\n\t\t   &arp->ar_sha,\n\t\t   &arp->ar_spa)                                      | 253       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| debug_cond(DEBUG_INT_STATE, "\tsource=%pM %pI4\n",\n\t\t   &arp->ar_sha,\n\t\t   &arp->ar_spa)                                      | 253       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| memcmp(&arp->ar_sha, net_ethaddr, ARP_HLEN)                                                                                         | 270       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| memcmp(&arp->ar_sha, net_ethaddr, ARP_HLEN)                                                                                         | 283       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| arp_raw_request(ip, net_ethaddr, ip)                                                                                                | 317       | link_local_receive_arp | /home/jai/Documents/projects/u-boot/net/link_local.c |
+| arp_raw_request(struct in_addr source_ip, const uchar *target_ethaddr, struct in_addr target_ip)                                    | 51        | arp_raw_request        | /home/jai/Documents/projects/u-boot/net/arp.c        |
+| memcpy(&arp->ar_tha, target_ethaddr, ARP_HLEN)                                                                                      | 75        | arp_raw_request        | /home/jai/Documents/projects/u-boot/net/arp.c        |
+""",
+...
+```
+
+The complete output of the query can be found here: [https://gist.github.com/jaiverma/aac963869ee576bd80dd683ec25976d3](https://gist.github.com/jaiverma/aac963869ee576bd80dd683ec25976d3)
+
+Of-course, not all of these results are vulnerable. The majority of them are safe. Joern's argument level granularity is not always accurate, so if tainted data reaches any of the arguments of a function marked as a sink, it will show that data-flow in the results. This issue is tracked here: [https://github.com/ShiftLeftSecurity/codepropertygraph/issues/729](https://github.com/ShiftLeftSecurity/codepropertygraph/issues/729).
+
+There are different strategies that different static analysis tools use for tracking taint which gives us different kinds of behaviour. For example, some tools stop tracking taint if there is an `if` condition to check bounds of a tainted variable. CodeQl supports value-set analysis which lets you specify lower and upper bounds of a variable in a query. Right now, Joern doesn't lose taint when a tainted variable goes through an `if` condition. This is a complex scenario to handle and different tools handle this in different ways.
+
+-----------------------------------------------------------
+
+**The reamining part of this post is only applicable to version of Joern prior to `v1.0.0`. Newer versions moved to a different API, and later on introduced inter-procedural data-flow analysis!**
 
 A similar query in joern looks like:
 
