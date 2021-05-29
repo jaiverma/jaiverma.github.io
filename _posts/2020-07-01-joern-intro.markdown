@@ -60,7 +60,7 @@ Here we are defining our source as the return value from the `ntohl` function ca
 
 Then we use Joern's `reachableByFlows` API to find a data-flow path from source to sink.
 
-`NOTE`: Joern does not support inter-procedural data-flow analysis in it's current release. That means it will not track data-flow across function boundaries. Anyway, we'll see how to write our queries to do this manually
+`NOTE`: ~~Joern does not support inter-procedural data-flow analysis in it's current release. That means it will not track data-flow across function boundaries. Anyway, we'll see how to write our queries to do this manually~~ Joern now supports inter-procedural data-flow analysis!
 
 Here is the result we get from running our query:
 
@@ -110,7 +110,7 @@ Here we have two functions, `f` and `g`.
 `f` reads a value using `ntohl` and returns it.
 `g` reads a value using `ntohl` but always returns 42.
 
-For this example, we are still looking for flows from calls to `ntohl` to the size argument of `memcpy`. But since Joern doesn't support inter-procedural taint analysis, we will have to write a query which will find such cases.
+For this example, we are still looking for flows from calls to `ntohl` to the size argument of `memcpy`. ~~But since Joern doesn't support inter-procedural taint analysis, we will have to write a query which will find such cases.~~ Although, Joern supports inter-procedural data-flow analyis, we'll write our own queries as an exercise.
 
 To do this, we can write a query like so:
 
@@ -121,13 +121,13 @@ def getFlow() = {
 
     // we want to filter those methods where the value returned by
     // ntohl is returned by the method
-    val filteredMethods = methods.l.filter(
+    val filteredMethods = methods.filter(
         method => {
-            val src = method.start.ast.isCallTo("ntohl")
-            val sink = method.start.methodReturn
+            val src = method.ast.isCallTo("ntohl")
+            val sink = method.methodReturn
             sink.reachableBy(src)
         }.size > 0
-    ).start
+    )
 
     // we will treat call to these filtered methods as good as a call to
     // ntohl. this will only get one layer of calls though...
@@ -217,13 +217,13 @@ We can write our query as follows:
 {% highlight scala %}
 def getFlow() = {
     val methods = cpg.method.name("memcpy").caller
-    val filteredMethods = methods.l.filter(
+    val filteredMethods = methods.filter(
         method => {
-            val src = method.start.parameter
-            val sink = method.start.ast.isCallTo("memcpy").argument.order(3)
+            val src = method.parameter
+            val sink = method.ast.isCallTo("memcpy").argument(3)
             sink.reachableBy(src)
         }.size > 0
-    ).start
+    )
 
     val src = cpg.call.name("ntohl")
     val sink = filteredMethods.parameter.argument
@@ -236,71 +236,47 @@ Here we search for functions which call `memcpy`. Then for those functions, we c
 This gives us the following results:
 
 ```
-joern> getFlow 
+joern> getFlow
 res2: List[String] = List(
-  """___________________________________________________________________________________
-| tracked     | lineNumber| method| file                                           |
-|==================================================================================|
-| ntohl(n)    | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)| 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| h(s, x)     | 29        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
+  """_________________________________________________________________________________
+| tracked         | lineNumber| method| file                                     |
+|================================================================================|
+| ntohl(n)        | 24        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| x = ntohl(n)    | 24        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| * s = malloc(x) | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| h(s, x)         | 26        | bar   | /home/jai/Documents/projects/vuln/main.c |
 """,
-  """___________________________________________________________________________________
-| tracked     | lineNumber| method| file                                           |
-|==================================================================================|
-| ntohl(n)    | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)| 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| h(s, x)     | 29        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
+  """_________________________________________________________________________________
+| tracked         | lineNumber| method| file                                     |
+|================================================================================|
+| ntohl(n)        | 24        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| x = ntohl(n)    | 24        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| * s = malloc(x) | 25        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| h(s, x)         | 26        | bar   | /home/jai/Documents/projects/vuln/main.c |
 """,
-  """______________________________________________________________________________________
-| tracked        | lineNumber| method| file                                           |
-|=====================================================================================|
-| ntohl(n)       | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)   | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| malloc(x)      | 28        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| * s = malloc(x)| 28        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| h(s, x)        | 29        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
+  """_________________________________________________________________________________
+| tracked         | lineNumber| method| file                                     |
+|================================================================================|
+| ntohl(n)        | 8         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| x = ntohl(n)    | 8         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| * s = malloc(x) | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| g(s, x)         | 10        | foo   | /home/jai/Documents/projects/vuln/main.c |
 """,
-  """______________________________________________________________________________________
-| tracked        | lineNumber| method| file                                           |
-|=====================================================================================|
-| ntohl(n)       | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)   | 27        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| malloc(x)      | 28        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| * s = malloc(x)| 28        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| h(s, x)        | 29        | bar   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-""",
-  """___________________________________________________________________________________
-| tracked     | lineNumber| method| file                                           |
-|==================================================================================|
-| ntohl(n)    | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)| 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| g(s, x)     | 13        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-""",
-  """___________________________________________________________________________________
-| tracked     | lineNumber| method| file                                           |
-|==================================================================================|
-| ntohl(n)    | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)| 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| g(s, x)     | 13        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-""",
-  """______________________________________________________________________________________
-| tracked        | lineNumber| method| file                                           |
-|=====================================================================================|
-| ntohl(n)       | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)   | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| malloc(x)      | 12        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| * s = malloc(x)| 12        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| g(s, x)        | 13        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-""",
-  """______________________________________________________________________________________
-| tracked        | lineNumber| method| file                                           |
-|=====================================================================================|
-| ntohl(n)       | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| x = ntohl(n)   | 11        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| malloc(x)      | 12        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| * s = malloc(x)| 12        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
-| g(s, x)        | 13        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/three/three.c|
+  """_________________________________________________________________________________
+| tracked         | lineNumber| method| file                                     |
+|================================================================================|
+| ntohl(n)        | 8         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| x = ntohl(n)    | 8         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| malloc(x)       | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| * s = malloc(x) | 9         | foo   | /home/jai/Documents/projects/vuln/main.c |
+| g(s, x)         | 10        | foo   | /home/jai/Documents/projects/vuln/main.c |
 """
 )
 ```
@@ -311,7 +287,7 @@ There is a problem here though. We are getting results for `bar` (which calls `h
 
 {% highlight scala %}
 val src = method.start.parameter
-val sink = method.start.ast.isCallTo("memcpy").argument.order(3)
+val sink = method.start.ast.isCallTo("memcpy").argument(3)
 sink.reachableBy(src)
 {% endhighlight %}
 
@@ -395,20 +371,19 @@ Here is a query I wrote which does exactly this:
 def getFlows(methodName: String) : Unit = {
     val candidateFuncs = cpg.method.name(methodName)
         .caller
-        .l
         .filter(func => {
-            val src = func.start.parameter
-            val sink = func.start.methodReturn
+            val src = func.parameter
+            val sink = func.methodReturn
             sink.reachableBy(src)
         }.size > 0)
-        .start
         .name
         .l
     for (f <- candidateFuncs) {
-        val src = cpg.call.name(f)
-        val sink = cpg.call.name("memcpy").argument
+        def src = cpg.call.name(f)
+        def sink = cpg.call.name("memcpy").argument(3)
         if (src.size > 0) {
-            if (sink.reachableBy(src).size > 0) {
+            def flow = sink.reachableBy(src)
+            if (flow.size > 0) {
                 print(sink.reachableByFlows(src).p)
             }
             else {
@@ -426,30 +401,63 @@ And this is the output we get:
 
 ```
 joern> getFlows("ntohl")
-List(_______________________________________________________________________________________
-| tracked           | lineNumber| method| file                                         |
-|======================================================================================|
-| h(n)              | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| sz = h(n)         | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| memcpy(s, buf, sz)| 34        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-, _______________________________________________________________________________________
-| tracked           | lineNumber| method| file                                         |
-|======================================================================================|
-| h(n)              | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| sz = h(n)         | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| memcpy(s, buf, sz)| 34        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-, _______________________________________________________________________________________
-| tracked           | lineNumber| method| file                                         |
-|======================================================================================|
-| h(n)              | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| sz = h(n)         | 32        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
-| memcpy(s, buf, sz)| 34        | foo   | /Users/jai/wd/tmp/vuln/tests/flow/four/four.c|
+List(____________________________________________________________________________________
+| tracked            | lineNumber| method| file                                     |
+|===================================================================================|
+| f(x)               | 12        | g     | /home/jai/Documents/projects/vuln/main.c |
+| n = f(x)           | 12        | g     | /home/jai/Documents/projects/vuln/main.c |
+| return n;          | 13        | g     | /home/jai/Documents/projects/vuln/main.c |
+| int                | 11        | g     | /home/jai/Documents/projects/vuln/main.c |
+| g(x)               | 24        | h     | /home/jai/Documents/projects/vuln/main.c |
+| int                | 23        | h     | /home/jai/Documents/projects/vuln/main.c |
+| h(n)               | 29        | foo   | /home/jai/Documents/projects/vuln/main.c |
+| sz = h(n)          | 29        | foo   | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(s, buf, sz) | 31        | foo   | /home/jai/Documents/projects/vuln/main.c |
+)List(____________________________________________________________________________________
+| tracked            | lineNumber| method| file                                     |
+|===================================================================================|
+| f2(x)              | 18        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| n = f2(x)          | 18        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| return n;          | 19        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| int                | 17        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| g2(n)              | 35        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| sz = g2(n)         | 35        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(s, buf, sz) | 37        | bar   | /home/jai/Documents/projects/vuln/main.c |
+```
+
+Now if we use Joern's in-built inter-procedural data-flow analysis functionality,
+
+{% highlight scala %}
+val src = cpg.call.name("ntohl")
+val sink = cpg.call.name("memcpy").argument(3)
+sink.reachableByFlows(src).p
+{% endhighlight %}
+
+We get the following result,
+
+```
+joern> sink.reachableByFlows(src).p
+res26: List[String] = List(
+  """____________________________________________________________________________________
+| tracked            | lineNumber| method| file                                     |
+|===================================================================================|
+| ntohl(x)           | 7         | f2    | /home/jai/Documents/projects/vuln/main.c |
+| n = ntohl(x)       | 7         | f2    | /home/jai/Documents/projects/vuln/main.c |
+| int                | 6         | f2    | /home/jai/Documents/projects/vuln/main.c |
+| f2(x)              | 18        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| int                | 17        | g2    | /home/jai/Documents/projects/vuln/main.c |
+| g2(n)              | 35        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| sz = g2(n)         | 35        | bar   | /home/jai/Documents/projects/vuln/main.c |
+| memcpy(s, buf, sz) | 37        | bar   | /home/jai/Documents/projects/vuln/main.c |
+"""
 )
 ```
 
+This misses the case we actually wanted to find and gives us a false-positive result.
+
 # Ending Note
 
-Okay I am going to end with that example. In this write-up I went through a couple of queries which one can write for inter-procedural data-flow analysis with Joern.
+Okay I am going to end with that example. In this write-up I went through a couple of queries which one can write for inter-procedural data-flow analysis with Joern. (Update: Joern now supports inter-procedural data-flow analysis)
 
 I find Joern to be a fascinating tool, and I plan to keep exploring it and do a couple more write-ups about it.
 
