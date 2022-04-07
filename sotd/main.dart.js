@@ -55412,7 +55412,7 @@ A.vi.prototype={
 ax(){return new A.JP(B.l)}}
 A.JP.prototype={
 aS(){this.bu()
-this.d=A.a52("http://20.233.8.13:5000/get_sotd")},
+this.d=A.a52("https://sotd.jai.cafe/get_sotd")},
 P(a,b){var s=null
 return A.jv(s,new A.uM(this.qS(),B.aA,s),s,s,B.tO,s,s,s,s)},
 qS(){var s,r=null
@@ -55454,7 +55454,7 @@ A.u7.prototype={
 ax(){return new A.Ik(B.l)}}
 A.Ik.prototype={
 aS(){this.bu()
-this.d=A.a50("http://20.233.8.13:5000/past_songs")},
+this.d=A.a50("https://sotd.jai.cafe/past_songs")},
 P(a,b){return this.qS()},
 qS(){return A.eM(A.NO(A.a([B.EA,A.aac(A.aB(204,255,255,255),1),A.aao(A.aaw(new A.a1V(this),A.b(this.d,"songList"),t.ub))],t.E),B.cN,B.ca),300,null)}}
 A.a1V.prototype={
